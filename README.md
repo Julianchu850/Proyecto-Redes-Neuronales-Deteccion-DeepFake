@@ -57,7 +57,7 @@ pip install -r requirements.txt
 
 ### 2. Datos
 
-FaceForensics++ (C23) se descarga de Kaggle ([`xdxd003/ff-c23`](https://www.kaggle.com/datasets/xdxd003/ff-c23)) con `kagglehub`. Se necesita un token de Kaggle (*Settings → API → Create New Token*). Más detalles en [`data/README.md`](data/README.md).
+FaceForensics++ (C23) se descarga de Kaggle ([`xdxd003/ff-c23`](https://www.kaggle.com/datasets/xdxd003/ff-c23)) con `kagglehub`. Se necesita un token de Kaggle (*Settings → API → Generate New Token*), guardado en `~/.kaggle/access_token` o en la variable `KAGGLE_API_TOKEN`. Más detalles en [`data/README.md`](data/README.md).
 
 ```python
 import kagglehub
