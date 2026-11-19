@@ -15,7 +15,7 @@ Diseñamos y entrenamos desde cero una red neuronal convolucional de dos ramas, 
 | 2 | Red propia de dos ramas, EfficientNet-B0, ablaciones (E1–E3) | ✅ Código listo — falta correr con los datos reales |
 | 3 | FaceShifter (E3b), Celeb-DF (E4), Grad-CAM (E5) y demo | ✅ Código listo — falta el informe |
 
-**Siguiente paso:** extraer los rostros de FaceForensics++ (C23) desde Kaggle y correr los experimentos.
+**Siguiente paso:** correr los notebooks de Kaggle (ver [Cómo correrlo en Kaggle](#cómo-correrlo-en-kaggle)).
 
 ## Estructura del repositorio
 
@@ -26,8 +26,10 @@ Diseñamos y entrenamos desde cero una red neuronal convolucional de dos ramas, 
 │   └── splits/ffpp_oficial/   # División oficial de FaceForensics++ por pares de identidades
 ├── docs/                      # Propuesta, anteproyecto e informe
 ├── notebooks/
-│   ├── 00_preparar_datos.ipynb       # Kaggle → rostros → splits → zip en Drive
-│   └── 01_entrenamiento_colab.ipynb  # Entrenamiento, experimentos E1–E5 y demo
+│   ├── kaggle_01_extraer_rostros.ipynb  # ⭐ Kaggle: rostros + splits (CPU)
+│   ├── kaggle_02_entrenar.ipynb         # ⭐ Kaggle: todos los experimentos (GPU)
+│   ├── 00_preparar_datos.ipynb          # Alternativa en Colab
+│   └── 01_entrenamiento_colab.ipynb     # Alternativa en Colab
 ├── results/                   # Métricas de los experimentos
 └── src/
     ├── data/
@@ -45,7 +47,30 @@ Diseñamos y entrenamos desde cero una red neuronal convolucional de dos ramas, 
     └── utils.py
 ```
 
-## Uso
+## Cómo correrlo en Kaggle
+
+El dataset ([`xdxd003/ff-c23`](https://www.kaggle.com/datasets/xdxd003/ff-c23)) ya está en Kaggle, así que no hay que descargarlo, y las corridas siguen aunque se cierre el navegador.
+
+**Requisito:** cuenta de Kaggle verificada con el celular (*Settings → Phone verification*), para que los notebooks tengan internet y puedan clonar este repositorio.
+
+### Notebook 1: extraer rostros (CPU)
+
+1. En Kaggle: *Create → New Notebook → File → Import Notebook* y subir [`notebooks/kaggle_01_extraer_rostros.ipynb`](notebooks/kaggle_01_extraer_rostros.ipynb).
+2. Panel derecho: **Accelerator: None**, **Internet: On**, *Add Input* → `ff-c23`.
+3. *Save Version* → **Save & Run All (Commit)**.
+4. Al terminar, en *Output* quedan `faces_ffpp.zip` (~5–6 GB) y `splits/`.
+
+### Notebook 2: entrenar y evaluar (GPU)
+
+1. Importar [`notebooks/kaggle_02_entrenar.ipynb`](notebooks/kaggle_02_entrenar.ipynb) igual que el anterior.
+2. Panel derecho: **Accelerator: GPU T4 x2** (o P100), **Internet: On**, *Add Input* → *Your Work* → la salida del notebook 1.
+3. *Save Version* → **Save & Run All (Commit)**.
+4. Entrena la cola de experimentos con un presupuesto de 11 h por sesión (Kaggle corta a las 12 h). Si no alcanza, pausa el experimento en curso guardando el checkpoint.
+5. Para continuar: nueva *Save Version*, agregando como input **la salida de la versión anterior de este mismo notebook**. Salta lo terminado y continúa lo pausado.
+
+La GPU gratuita de Kaggle tiene una cuota de ~30 h por semana. La cola está ordenada para que lo indispensable (MesoNet, red propia y EfficientNet) termine primero.
+
+## Uso local
 
 ### 1. Instalación
 
@@ -57,7 +82,7 @@ pip install -r requirements.txt
 
 ### 2. Datos
 
-FaceForensics++ (C23) se descarga de Kaggle ([`xdxd003/ff-c23`](https://www.kaggle.com/datasets/xdxd003/ff-c23)) con `kagglehub`. Se necesita un token de Kaggle (*Settings → API → Generate New Token*), guardado en `~/.kaggle/access_token` o en la variable `KAGGLE_API_TOKEN`. Más detalles en [`data/README.md`](data/README.md).
+Para correr localmente, FaceForensics++ (C23) se descarga de Kaggle ([`xdxd003/ff-c23`](https://www.kaggle.com/datasets/xdxd003/ff-c23)) con `kagglehub`. Se necesita un token de Kaggle (*Settings → API → Generate New Token*), guardado en `~/.kaggle/access_token` o en la variable `KAGGLE_API_TOKEN`. Más detalles en [`data/README.md`](data/README.md).
 
 ```python
 import kagglehub
@@ -65,8 +90,6 @@ ruta = kagglehub.dataset_download("xdxd003/ff-c23")
 ```
 
 ### 3. Extraer rostros
-
-Recomendado en el **Mac** (la extracción depende de la CPU y Colab solo tiene 2 núcleos). En Colab, usar [`notebooks/00_preparar_datos.ipynb`](notebooks/00_preparar_datos.ipynb).
 
 ```bash
 python -m src.data.extraer_rostros --dataset ffpp --raiz <ruta de kagglehub> --salida data/faces/ffpp --procesos 8
