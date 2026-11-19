@@ -26,6 +26,18 @@ def fijar_semilla(semilla: int) -> None:
     torch.cuda.manual_seed_all(semilla)
 
 
+def cargar_modelo(checkpoint, dispositivo: torch.device):
+    """Carga un checkpoint 'mejor.pt' y devuelve (modelo en modo eval, tamaño de entrada)."""
+    from .models import crear_modelo  # import local para evitar ciclos
+
+    ck = torch.load(checkpoint, map_location=dispositivo, weights_only=False)
+    extra = {"preentrenado": False} if ck["nombre"] == "efficientnet_b0" else {}  # los pesos vienen del checkpoint
+    modelo = crear_modelo(ck["nombre"], ck["tam"], **extra).to(dispositivo)
+    modelo.load_state_dict(ck["modelo"])
+    modelo.eval()
+    return modelo, ck["tam"]
+
+
 @torch.no_grad()
 def predecir(modelo, loader: DataLoader, dispositivo: torch.device) -> pd.DataFrame:
     """Devuelve un DataFrame con las filas del dataset y la probabilidad de 'falso'."""

@@ -90,7 +90,7 @@ def main():
         splits = splits_ffpp(manifiesto)
     else:
         if not a.lista_celebdf:
-            raise SystemExit("Para Celeb-DF indica --lista-celebdf")
+            raise SystemExit("Para Celeb-DF indica --lista-celebdf (List_of_testing_videos.txt, viene con el dataset)")
         splits = splits_celebdf(manifiesto, a.lista_celebdf)
 
     a.salida.mkdir(parents=True, exist_ok=True)

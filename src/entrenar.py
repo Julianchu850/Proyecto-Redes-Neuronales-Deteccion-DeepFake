@@ -44,7 +44,7 @@ def argumentos():
     p.add_argument("--paciencia", type=int, default=5, help="Épocas sin mejorar el AUC de validación")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--metodos", nargs="+", default=None,
-                   help="Técnicas de manipulación a usar en entrenamiento (por defecto, todas)")
+                   help="Técnicas de manipulación a usar en entrenamiento (por defecto, las 4 de FF++; FaceShifter nunca)")
     p.add_argument("--semilla", type=int, default=42)
     p.add_argument("--reanudar", action="store_true")
     return p.parse_args()

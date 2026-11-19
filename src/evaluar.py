@@ -5,6 +5,10 @@ Ejemplos:
     python -m src.evaluar --checkpoint runs/meso4/mejor.pt --datos data/faces/ffpp \
         --csv data/splits/ffpp/test.csv --salida results/meso4_ffpp
 
+    # E3b: técnica nunca vista (FaceShifter, si viene en el dataset)
+    python -m src.evaluar --checkpoint runs/meso4/mejor.pt --datos data/faces/ffpp \
+        --csv data/splits/ffpp/test.csv --salida results/meso4_faceshifter --metodos FaceShifter
+
     # E4: generalización a Celeb-DF
     python -m src.evaluar --checkpoint runs/meso4/mejor.pt --datos data/faces/celebdf \
         --csv data/splits/celebdf/test.csv --salida results/meso4_celebdf
@@ -16,13 +20,11 @@ import argparse
 import json
 from pathlib import Path
 
-import torch
 from torch.utils.data import DataLoader
 
 from .data.dataset import RostrosDataset, transformaciones
 from .metricas import calcular
-from .models import crear_modelo
-from .utils import elegir_dispositivo, predecir
+from .utils import cargar_modelo, elegir_dispositivo, predecir
 
 
 def main():
@@ -33,15 +35,14 @@ def main():
     p.add_argument("--salida", type=Path, required=True)
     p.add_argument("--batch", type=int, default=128)
     p.add_argument("--workers", type=int, default=4)
+    p.add_argument("--metodos", nargs="+", default=None,
+                   help="Técnicas a evaluar (por defecto todas menos FaceShifter; usar --metodos FaceShifter para E3b)")
     a = p.parse_args()
 
     dispositivo = elegir_dispositivo()
-    ck = torch.load(a.checkpoint, map_location=dispositivo, weights_only=False)
-    extra = {"preentrenado": False} if ck["nombre"] == "efficientnet_b0" else {}  # los pesos vienen del checkpoint
-    modelo = crear_modelo(ck["nombre"], ck["tam"], **extra).to(dispositivo)
-    modelo.load_state_dict(ck["modelo"])
+    modelo, tam = cargar_modelo(a.checkpoint, dispositivo)
 
-    ds = RostrosDataset(a.csv, a.datos, transformaciones(False, ck["tam"]))
+    ds = RostrosDataset(a.csv, a.datos, transformaciones(False, tam), a.metodos)
     dl = DataLoader(ds, batch_size=a.batch, shuffle=False, num_workers=a.workers)
     pred = predecir(modelo, dl, dispositivo)
     res = calcular(pred)

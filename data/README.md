@@ -4,6 +4,11 @@ Los videos y los rostros extraídos **no se versionan** en este repositorio por 
 
 ## Cómo obtener los datos
 
+**Opción usada en el proyecto:** FaceForensics++ (C23) desde Kaggle, [`xdxd003/ff-c23`](https://www.kaggle.com/datasets/xdxd003/ff-c23), con `kagglehub.dataset_download("xdxd003/ff-c23")` (ver `notebooks/00_preparar_datos.ipynb`). `src/data/extraer_rostros.py` reconoce su estructura de carpetas automáticamente.
+
+**Opción oficial:**
+
+
 1. **FaceForensics++**: llenar el formulario indicado en el [repositorio oficial](https://github.com/ondyari/FaceForensics). Al ser aprobado se recibe un script de descarga. Descargar solo la versión comprimida **c23** (y opcionalmente c40 para las pruebas de robustez).
 2. **Celeb-DF v2**: solicitar acceso desde el [repositorio oficial](https://github.com/yuezunli/celeb-deepfakeforensics).
 

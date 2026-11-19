@@ -6,3 +6,5 @@ pandas
 pillow
 scikit-learn
 tqdm
+matplotlib
+gradio>=4

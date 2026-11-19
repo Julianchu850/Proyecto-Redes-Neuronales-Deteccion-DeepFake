@@ -5,7 +5,8 @@ grande con YuNet (detector incluido en OpenCV), lo recorta con un margen
 alrededor de la cara y lo guarda como PNG (sin pérdida, para no alterar las
 huellas de frecuencia que buscamos detectar).
 
-Al final escribe un manifiesto CSV con una fila por recorte.
+Al final escribe un manifiesto CSV con una fila por recorte. Si se interrumpe,
+al volver a correr el mismo comando salta los videos ya procesados.
 
 Ejemplos:
     python -m src.data.extraer_rostros --dataset ffpp --raiz /ruta/FaceForensics --salida data/faces/ffpp
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
@@ -26,32 +28,60 @@ from tqdm import tqdm
 PESOS_YUNET = Path(__file__).parent / "pesos" / "face_detection_yunet_2023mar.onnx"
 
 METODOS_FFPP = ["Deepfakes", "Face2Face", "FaceSwap", "NeuralTextures"]
+# FaceShifter viene en algunas versiones del dataset: se extrae aparte y se usa
+# solo como técnica nunca vista en entrenamiento (prueba de generalización).
+METODOS_EXTRA = ["FaceShifter"]
+NOMBRES_ORIGINAL = {"original", "original_sequences", "youtube", "real", "originals"}
+ID_FFPP = re.compile(r"^\d{3}(_\d{3})?$")  # 000 (original) o 000_003 (manipulado)
 
 
 # ---------------------------------------------------------------------------
 # Listado de videos por dataset
 # ---------------------------------------------------------------------------
 
-def listar_videos_ffpp(raiz: Path, compresion: str) -> list[dict]:
-    """Estructura que deja el script oficial de descarga de FaceForensics++."""
-    videos = []
-    reales = raiz / "original_sequences" / "youtube" / compresion / "videos"
-    for v in sorted(reales.glob("*.mp4")):
-        videos.append({"ruta": v, "etiqueta": 0, "metodo": "Original", "video_id": v.stem})
-    for metodo in METODOS_FFPP:
-        carpeta = raiz / "manipulated_sequences" / metodo / compresion / "videos"
-        for v in sorted(carpeta.glob("*.mp4")):
+def listar_videos_ffpp(raiz: Path, compresion: str, metodos: list[str]) -> list[dict]:
+    """Busca los .mp4 bajo `raiz` y deduce la técnica por el nombre de las carpetas.
+
+    Funciona con la estructura del script oficial
+        original_sequences/youtube/c23/videos/000.mp4
+        manipulated_sequences/Deepfakes/c23/videos/000_003.mp4
+    y con versiones reorganizadas como la de Kaggle
+        FaceForensics++_C23/original/000.mp4
+        FaceForensics++_C23/Deepfakes/000_003.mp4
+    DeepFakeDetection (actores pagados, otros ids) se ignora.
+    """
+    por_nombre = {m.lower(): m for m in metodos}
+    otras_compresiones = {"raw", "c23", "c40"} - {compresion}
+    videos, ignorados = [], 0
+    for v in sorted(raiz.rglob("*.mp4")):
+        partes = [p.lower() for p in v.relative_to(raiz).parts[:-1]]
+        if any(p in otras_compresiones for p in partes) or not ID_FFPP.match(v.stem):
+            ignorados += 1
+            continue
+        metodo = next((por_nombre[p] for p in reversed(partes) if p in por_nombre), None)
+        if metodo is not None and "_" in v.stem:
             videos.append({"ruta": v, "etiqueta": 1, "metodo": metodo, "video_id": v.stem})
+        elif metodo is None and "_" not in v.stem and any(p in NOMBRES_ORIGINAL for p in partes):
+            videos.append({"ruta": v, "etiqueta": 0, "metodo": "Original", "video_id": v.stem})
+        else:
+            ignorados += 1
+    conteo = {}
+    for v in videos:
+        conteo[v["metodo"]] = conteo.get(v["metodo"], 0) + 1
+    print("Videos encontrados:", ", ".join(f"{k}={n}" for k, n in sorted(conteo.items())),
+          f"| ignorados: {ignorados}")
     return videos
 
 
 def listar_videos_celebdf(raiz: Path) -> list[dict]:
-    """Celeb-DF v2: Celeb-real/, YouTube-real/ y Celeb-synthesis/."""
+    """Celeb-DF v2: busca las carpetas Celeb-real/, YouTube-real/ y Celeb-synthesis/ bajo `raiz`."""
     videos = []
     for carpeta, etiqueta in [("Celeb-real", 0), ("YouTube-real", 0), ("Celeb-synthesis", 1)]:
-        for v in sorted((raiz / carpeta).glob("*.mp4")):
-            videos.append({"ruta": v, "etiqueta": etiqueta, "metodo": carpeta,
-                           "video_id": f"{carpeta}/{v.stem}"})
+        encontradas = [d for d in raiz.rglob(carpeta) if d.is_dir()]
+        for d in encontradas[:1]:
+            for v in sorted(d.glob("*.mp4")):
+                videos.append({"ruta": v, "etiqueta": etiqueta, "metodo": carpeta,
+                               "video_id": f"{carpeta}/{v.stem}"})
     return videos
 
 
@@ -90,7 +120,16 @@ def recortar(frame: np.ndarray, caja, margen: float, tam: int) -> np.ndarray:
     return cv2.resize(cara, (tam, tam), interpolation=cv2.INTER_AREA)
 
 
+CAMPOS = ["ruta", "etiqueta", "metodo", "video_id", "video", "frame"]
+
+
 def procesar_video(info: dict, salida: Path, n_frames: int, margen: float, tam: int) -> list[dict]:
+    carpeta = salida / info["metodo"] / info["video_id"]
+    listo = carpeta / "_listo.csv"
+    if listo.exists():  # ya procesado en una ejecución anterior: permite reanudar
+        with open(listo, newline="") as fh:
+            return list(csv.DictReader(fh))
+
     cap = cv2.VideoCapture(str(info["ruta"]))
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     ancho = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -101,33 +140,40 @@ def procesar_video(info: dict, salida: Path, n_frames: int, margen: float, tam: 
 
     indices = set(np.linspace(0, total - 1, num=min(n_frames, total), dtype=int).tolist())
     detector = crear_detector(ancho, alto)
-    carpeta = salida / info["metodo"] / info["video_id"]
     carpeta.mkdir(parents=True, exist_ok=True)
 
     filas, ultima_caja, i = [], None, 0
     # Lectura secuencial: más confiable que saltar con CAP_PROP_POS_FRAMES en mp4
     while i <= max(indices):
+        if i not in indices:
+            if not cap.grab():  # avanza sin convertir el frame: más rápido que read()
+                break
+            i += 1
+            continue
         ok, frame = cap.read()
         if not ok:
             break
-        if i in indices:
-            caja = cara_mas_grande(detector, frame)
-            if caja is None:
-                caja = ultima_caja  # si no detecta, reutiliza la última caja conocida
-            if caja is not None:
-                ultima_caja = caja
-                ruta = carpeta / f"{i:04d}.png"
-                cv2.imwrite(str(ruta), recortar(frame, caja, margen, tam))
-                filas.append({
-                    "ruta": str(ruta.relative_to(salida)),
-                    "etiqueta": info["etiqueta"],
-                    "metodo": info["metodo"],
-                    "video_id": info["video_id"],
-                    "video": f'{info["metodo"]}/{info["video_id"]}',
-                    "frame": i,
-                })
+        caja = cara_mas_grande(detector, frame)
+        if caja is None:
+            caja = ultima_caja  # si no detecta, reutiliza la última caja conocida
+        if caja is not None:
+            ultima_caja = caja
+            ruta = carpeta / f"{i:04d}.png"
+            cv2.imwrite(str(ruta), recortar(frame, caja, margen, tam))
+            filas.append({
+                "ruta": str(ruta.relative_to(salida)),
+                "etiqueta": info["etiqueta"],
+                "metodo": info["metodo"],
+                "video_id": info["video_id"],
+                "video": f'{info["metodo"]}/{info["video_id"]}',
+                "frame": i,
+            })
         i += 1
     cap.release()
+    with open(listo, "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=CAMPOS)
+        w.writeheader()
+        w.writerows(filas)
     return filas
 
 
@@ -139,6 +185,8 @@ def main():
     p.add_argument("--raiz", type=Path, required=True, help="Carpeta raíz del dataset descargado")
     p.add_argument("--salida", type=Path, required=True, help="Carpeta donde se guardan los recortes")
     p.add_argument("--compresion", default="c23", help="Solo FF++: c23 o c40")
+    p.add_argument("--sin-faceshifter", action="store_true",
+                   help="Solo FF++: no extraer FaceShifter aunque esté en el dataset")
     p.add_argument("--frames-reales", type=int, default=32, help="Frames por video real")
     p.add_argument("--frames-falsos", type=int, default=8,
                    help="Frames por video falso (FF++ tiene 4 falsos por cada real; 32/8 balancea las clases)")
@@ -149,7 +197,8 @@ def main():
     a = p.parse_args()
 
     if a.dataset == "ffpp":
-        videos = listar_videos_ffpp(a.raiz, a.compresion)
+        metodos = METODOS_FFPP + ([] if a.sin_faceshifter else METODOS_EXTRA)
+        videos = listar_videos_ffpp(a.raiz, a.compresion, metodos)
     else:
         videos = listar_videos_celebdf(a.raiz)
     if a.limite:
@@ -173,7 +222,7 @@ def main():
     filas.sort(key=lambda r: r["ruta"])
     manifiesto = a.salida / "manifiesto.csv"
     with open(manifiesto, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=["ruta", "etiqueta", "metodo", "video_id", "video", "frame"])
+        w = csv.DictWriter(fh, fieldnames=CAMPOS)
         w.writeheader()
         w.writerows(filas)
     n_videos = len({r["video"] for r in filas})

@@ -12,6 +12,9 @@ from PIL import Image, ImageFilter
 from torch.utils.data import Dataset
 from torchvision import transforms as T
 
+# Técnicas que nunca se usan para entrenar: solo prueban la generalización
+METODOS_RESERVADOS = ["FaceShifter"]
+
 MEDIA = (0.485, 0.456, 0.406)
 DESV = (0.229, 0.224, 0.225)
 
@@ -69,10 +72,17 @@ class RostrosDataset(Dataset):
     """
 
     def __init__(self, csv: Path, raiz: Path, transform=None, metodos: list[str] | None = None):
+        """metodos: técnicas de manipulación a conservar (los reales siempre se conservan).
+
+        Por defecto se usan todas excepto las reservadas para generalización
+        (FaceShifter), que solo entran si se piden explícitamente.
+        """
         df = pd.read_csv(csv, dtype={"video_id": str})
+        falsos = df["etiqueta"] == 1
         if metodos is not None:
-            # Conserva los reales y solo los métodos de manipulación indicados (experimento E3)
-            df = df[(df["etiqueta"] == 0) | (df["metodo"].isin(metodos))]
+            df = df[~falsos | df["metodo"].isin(metodos)]
+        else:
+            df = df[~falsos | ~df["metodo"].isin(METODOS_RESERVADOS)]
         self.df = df.reset_index(drop=True)
         self.raiz = Path(raiz)
         self.transform = transform or transformaciones(False)

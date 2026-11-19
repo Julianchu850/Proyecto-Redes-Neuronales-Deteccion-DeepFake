@@ -13,16 +13,21 @@ Diseñamos y entrenamos desde cero una red neuronal convolucional de dos ramas, 
 |---|---|---|
 | 1 | Pipeline de datos (extracción de rostros, splits sin fugas), MesoNet, entrenamiento y evaluación | ✅ Código listo — falta correr con los datos reales |
 | 2 | Red propia de dos ramas, EfficientNet-B0, ablaciones (E1–E3) | ✅ Código listo — falta correr con los datos reales |
-| 3 | Celeb-DF (E4), Grad-CAM (E5), demo e informe | ⏳ |
+| 3 | FaceShifter (E3b), Celeb-DF (E4), Grad-CAM (E5) y demo | ✅ Código listo — falta el informe |
+
+**Siguiente paso:** extraer los rostros de FaceForensics++ (C23) desde Kaggle y correr los experimentos.
 
 ## Estructura del repositorio
 
 ```
+├── app/
+│   └── demo.py                # Demo en Gradio: imagen o video → probabilidad + Grad-CAM
 ├── data/
 │   └── splits/ffpp_oficial/   # División oficial de FaceForensics++ por pares de identidades
 ├── docs/                      # Propuesta, anteproyecto e informe
 ├── notebooks/
-│   └── 01_entrenamiento_colab.ipynb
+│   ├── 00_preparar_datos.ipynb       # Kaggle → rostros → splits → zip en Drive
+│   └── 01_entrenamiento_colab.ipynb  # Entrenamiento, experimentos E1–E5 y demo
 ├── results/                   # Métricas de los experimentos
 └── src/
     ├── data/
@@ -35,6 +40,7 @@ Diseñamos y entrenamos desde cero una red neuronal convolucional de dos ramas, 
     │   └── efficientnet.py     # EfficientNet-B0 preentrenado, referencia
     ├── entrenar.py             # Entrenamiento con AMP, early stopping y checkpoints reanudables
     ├── evaluar.py              # Métricas por frame, por video y por técnica
+    ├── gradcam.py              # Mapas Grad-CAM: ejemplos y promedio por técnica
     ├── metricas.py
     └── utils.py
 ```
@@ -51,15 +57,28 @@ pip install -r requirements.txt
 
 ### 2. Datos
 
-Ver [`data/README.md`](data/README.md) para descargar FaceForensics++ y Celeb-DF.
+FaceForensics++ (C23) se descarga de Kaggle ([`xdxd003/ff-c23`](https://www.kaggle.com/datasets/xdxd003/ff-c23)) con `kagglehub`. Se necesita un token de Kaggle (*Settings → API → Create New Token*). Más detalles en [`data/README.md`](data/README.md).
+
+```python
+import kagglehub
+ruta = kagglehub.dataset_download("xdxd003/ff-c23")
+```
 
 ### 3. Extraer rostros
 
+Recomendado en el **Mac** (la extracción depende de la CPU y Colab solo tiene 2 núcleos). En Colab, usar [`notebooks/00_preparar_datos.ipynb`](notebooks/00_preparar_datos.ipynb).
+
 ```bash
-python -m src.data.extraer_rostros --dataset ffpp --raiz /ruta/FaceForensics --salida data/faces/ffpp
+python -m src.data.extraer_rostros --dataset ffpp --raiz <ruta de kagglehub> --salida data/faces/ffpp --procesos 8
 ```
 
-Por defecto toma 32 frames de cada video real y 8 de cada falso. Como FaceForensics++ tiene 4 videos falsos por cada real, eso deja las clases balanceadas (~32 mil rostros de cada una). Los recortes se guardan en PNG para no agregar compresión que confunda a la rama de frecuencia.
+- Detecta sola la estructura de carpetas (la de Kaggle o la del script oficial) e ignora `DeepFakeDetection`.
+- Toma 32 frames de cada video real y 8 de cada falso: como hay 4 técnicas, las clases quedan balanceadas (~32 mil rostros de cada una).
+- Guarda en PNG para no agregar compresión que confunda a la rama de frecuencia.
+- Si se interrumpe, al volver a correr el comando continúa donde iba.
+- Si el dataset trae **FaceShifter**, la extrae pero **nunca se usa para entrenar**: queda como técnica no vista (E3b).
+
+Luego se empaqueta para subir a Drive: `cd data/faces && zip -r -0 faces_ffpp.zip ffpp`.
 
 ### 4. Crear los splits
 
@@ -77,7 +96,30 @@ python -m src.evaluar --checkpoint runs/meso4/mejor.pt --datos data/faces/ffpp \
     --csv data/splits/ffpp/test.csv --salida results/meso4_ffpp
 ```
 
-En Colab, usar [`notebooks/01_entrenamiento_colab.ipynb`](notebooks/01_entrenamiento_colab.ipynb), que también corre la ablación y el experimento E3.
+En Colab, usar [`notebooks/01_entrenamiento_colab.ipynb`](notebooks/01_entrenamiento_colab.ipynb), que corre todos los experimentos (E1–E5) y arma la tabla de resultados.
+
+### 6. Grad-CAM y demo
+
+```bash
+python -m src.gradcam --checkpoint runs/dos_ramas/mejor.pt --datos data/faces/ffpp \
+    --csv data/splits/ffpp/test.csv --salida results/gradcam/dos_ramas
+python -m app.demo --checkpoint runs/dos_ramas/mejor.pt runs/meso4/mejor.pt   # --compartir en Colab
+```
+
+## Experimentos
+
+| ID | Qué mide | Cómo |
+|---|---|---|
+| E1 | Rendimiento dentro de FF++ | `evaluar` en `test.csv` |
+| E2 | Aporte de cada componente | Variantes `solo_espacial`, `solo_frecuencia`, `dos_ramas_sin_se`, `dos_ramas_srm` |
+| E3 | Técnica no vista | `entrenar --metodos` con 3 de las 4 técnicas |
+| E3b | Técnica nunca vista (FaceShifter) | `evaluar --metodos FaceShifter` |
+| E4 | Otro dataset | `evaluar` en Celeb-DF v2 |
+| E5 | Interpretabilidad | `gradcam` |
+
+El Grad-CAM se validó con una prueba controlada: se entrenó una red donde lo "falso" era una mancha puesta a propósito en la boca, y el mapa la localiza.
+
+![Validación del Grad-CAM](docs/figuras/validacion_gradcam.png)
 
 ## Modelos
 
@@ -99,10 +141,10 @@ En la fila de abajo, el *upsampling* (lo que hacen los generadores de deepfakes)
 
 ## Datasets
 
-- [FaceForensics++](https://github.com/ondyari/FaceForensics): entrenamiento, validación y prueba.
+- [FaceForensics++](https://github.com/ondyari/FaceForensics) (versión C23 en [Kaggle](https://www.kaggle.com/datasets/xdxd003/ff-c23)): entrenamiento, validación y prueba.
 - [Celeb-DF v2](https://github.com/yuezunli/celeb-deepfakeforensics): prueba de generalización.
 
-Ambos requieren solicitar acceso y aceptar sus términos de uso. Los datos **no** se suben a este repositorio.
+Se usan solo con fines académicos y según sus términos de uso. Los datos **no** se suben a este repositorio.
 
 ## Créditos de terceros
 

@@ -43,3 +43,7 @@ class Meso4(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.clasificador(self.extractor(x)).squeeze(1)
+
+    def capa_gradcam(self) -> nn.Module:
+        """ReLU del último bloque, antes del max-pooling final (mapa de 28×28)."""
+        return self.extractor[-1][2]
