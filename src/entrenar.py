@@ -47,6 +47,9 @@ def argumentos():
                    help="Técnicas de manipulación a usar en entrenamiento (por defecto, las 4 de FF++; FaceShifter nunca)")
     p.add_argument("--semilla", type=int, default=42)
     p.add_argument("--reanudar", action="store_true")
+    p.add_argument("--max-minutos", type=float, default=None,
+                   help="Pausa el entrenamiento (guardando el checkpoint) al superar este tiempo. "
+                        "Útil en Kaggle/Colab: luego se continúa con --reanudar")
     return p.parse_args()
 
 
@@ -87,6 +90,8 @@ def main():
     else:
         (a.salida / "config.json").write_text(json.dumps({k: str(v) for k, v in vars(a).items()}, indent=2))
 
+    (a.salida / "PAUSADO").unlink(missing_ok=True)
+    t_inicio = time.time()
     for epoca in range(inicio, a.epocas):
         t0 = time.time()
         modelo.train()
@@ -129,10 +134,18 @@ def main():
                     "epoca": epoca, "mejor_auc": mejor_auc, "sin_mejora": sin_mejora,
                     "historial": historial}, ultimo)
 
+        transcurrido = (time.time() - t_inicio) / 60
+        duracion_epoca = (time.time() - t0) / 60
+        if a.max_minutos and epoca + 1 < a.epocas and transcurrido + duracion_epoca > a.max_minutos:
+            print(f"⏸ Pausado tras {transcurrido:.0f} min (límite {a.max_minutos:.0f}). Continúa con --reanudar.")
+            (a.salida / "PAUSADO").touch()
+            return
+
         if sin_mejora >= a.paciencia:
             print(f"Early stopping: {a.paciencia} épocas sin mejorar.")
             break
 
+    (a.salida / "TERMINADO").touch()
     print(f"Mejor AUC de validación (frame): {mejor_auc:.4f} → {a.salida / 'mejor.pt'}")
 
 

@@ -89,18 +89,29 @@ def listar_videos_celebdf(raiz: Path) -> list[dict]:
 # Detección y recorte
 # ---------------------------------------------------------------------------
 
+# La cara se busca en una copia reducida del frame (más rápido en videos HD);
+# el recorte sí se hace sobre el frame original, sin perder calidad.
+MAX_LADO_DETECCION = 640
+
+
 def crear_detector(ancho: int, alto: int, umbral: float = 0.7):
-    detector = cv2.FaceDetectorYN.create(str(PESOS_YUNET), "", (ancho, alto), umbral, 0.3, 5000)
-    return detector
+    escala = min(1.0, MAX_LADO_DETECCION / max(ancho, alto, 1))
+    tam = (max(1, round(ancho * escala)), max(1, round(alto * escala)))
+    return cv2.FaceDetectorYN.create(str(PESOS_YUNET), "", tam, umbral, 0.3, 5000)
 
 
 def cara_mas_grande(detector, frame: np.ndarray):
-    """Devuelve (x, y, w, h) del rostro más grande o None."""
+    """Devuelve (x, y, w, h) del rostro más grande, en coordenadas del frame original, o None."""
+    w_in, h_in = detector.getInputSize()
+    alto, ancho = frame.shape[:2]
+    if (ancho, alto) != (w_in, h_in):
+        frame = cv2.resize(frame, (w_in, h_in), interpolation=cv2.INTER_AREA)
     _, caras = detector.detect(frame)
     if caras is None or len(caras) == 0:
         return None
     x, y, w, h = max(caras, key=lambda c: c[2] * c[3])[:4]
-    return float(x), float(y), float(w), float(h)
+    sx, sy = ancho / w_in, alto / h_in
+    return float(x) * sx, float(y) * sy, float(w) * sx, float(h) * sy
 
 
 def recortar(frame: np.ndarray, caja, margen: float, tam: int) -> np.ndarray:
