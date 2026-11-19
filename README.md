@@ -12,7 +12,7 @@ Diseñamos y entrenamos desde cero una red neuronal convolucional de dos ramas, 
 | Semana | Contenido | Estado |
 |---|---|---|
 | 1 | Pipeline de datos (extracción de rostros, splits sin fugas), MesoNet, entrenamiento y evaluación | ✅ Código listo — falta correr con los datos reales |
-| 2 | Red propia de dos ramas, EfficientNet-B0, ablaciones (E1–E3) | ⏳ |
+| 2 | Red propia de dos ramas, EfficientNet-B0, ablaciones (E1–E3) | ✅ Código listo — falta correr con los datos reales |
 | 3 | Celeb-DF (E4), Grad-CAM (E5), demo e informe | ⏳ |
 
 ## Estructura del repositorio
@@ -30,7 +30,9 @@ Diseñamos y entrenamos desde cero una red neuronal convolucional de dos ramas, 
     │   ├── crear_splits.py     # Manifiesto → train/val/test sin fugas de identidad
     │   └── dataset.py          # Dataset de PyTorch y aumentos (JPEG, desenfoque, color)
     ├── models/
-    │   └── mesonet.py          # Meso-4, línea base desde cero
+    │   ├── mesonet.py          # Meso-4, línea base desde cero
+    │   ├── dos_ramas.py        # Red propia: rama espacial + rama de frecuencia (FFT o SRM)
+    │   └── efficientnet.py     # EfficientNet-B0 preentrenado, referencia
     ├── entrenar.py             # Entrenamiento con AMP, early stopping y checkpoints reanudables
     ├── evaluar.py              # Métricas por frame, por video y por técnica
     ├── metricas.py
@@ -75,7 +77,25 @@ python -m src.evaluar --checkpoint runs/meso4/mejor.pt --datos data/faces/ffpp \
     --csv data/splits/ffpp/test.csv --salida results/meso4_ffpp
 ```
 
-En Colab, usar [`notebooks/01_entrenamiento_colab.ipynb`](notebooks/01_entrenamiento_colab.ipynb).
+En Colab, usar [`notebooks/01_entrenamiento_colab.ipynb`](notebooks/01_entrenamiento_colab.ipynb), que también corre la ablación y el experimento E3.
+
+## Modelos
+
+| `--modelo` | Descripción | Parámetros |
+|---|---|---|
+| `meso4` | MesoNet, línea base desde cero | 24 mil |
+| `dos_ramas` | **Red propia**: espacial + frecuencia (FFT), con atención SE | 1,63 M |
+| `solo_espacial` | Ablación: sin rama de frecuencia | 1,18 M |
+| `solo_frecuencia` | Ablación: sin rama espacial | 0,45 M |
+| `dos_ramas_sin_se` | Ablación: sin Squeeze-and-Excitation | 1,48 M |
+| `dos_ramas_srm` | Variante: rama de frecuencia con filtros SRM en lugar de FFT | 1,63 M |
+| `efficientnet_b0` | Referencia preentrenada en ImageNet (usar `--lr 3e-4`) | 4,0 M |
+
+La red propia recibe la misma imagen RGB que los demás modelos y calcula por dentro la entrada de la rama de frecuencia:
+
+![Entradas de la rama de frecuencia](docs/figuras/rama_frecuencia_ejemplo.png)
+
+En la fila de abajo, el *upsampling* (lo que hacen los generadores de deepfakes) deja "réplicas" en el espectro de Fourier, que no se notan en la imagen.
 
 ## Datasets
 

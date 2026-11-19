@@ -37,7 +37,8 @@ def main():
 
     dispositivo = elegir_dispositivo()
     ck = torch.load(a.checkpoint, map_location=dispositivo, weights_only=False)
-    modelo = crear_modelo(ck["nombre"], ck["tam"]).to(dispositivo)
+    extra = {"preentrenado": False} if ck["nombre"] == "efficientnet_b0" else {}  # los pesos vienen del checkpoint
+    modelo = crear_modelo(ck["nombre"], ck["tam"], **extra).to(dispositivo)
     modelo.load_state_dict(ck["modelo"])
 
     ds = RostrosDataset(a.csv, a.datos, transformaciones(False, ck["tam"]))

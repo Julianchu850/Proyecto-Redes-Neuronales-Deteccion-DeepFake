@@ -83,9 +83,9 @@ Diseñar y entrenar desde cero una red neuronal que clasifique rostros en video 
 **Arquitectura propuesta (borrador):**
 
 - **Rama espacial** (entrada RGB 3×224×224): un *stem* convolucional seguido de cuatro etapas de bloques residuales con convoluciones *depthwise separable* (64 → 128 → 256 → 384 canales), con atención *Squeeze-and-Excitation* en las dos últimas etapas, y *global average pooling*.
-- **Rama de frecuencia** (entrada: logaritmo de la magnitud de la FFT 2D del rostro en escala de grises, 1×224×224): estructura análoga y más liviana (32 → 64 → 128 → 256 canales). Como variante se evaluarán filtros pasa-altos tipo SRM en lugar de la FFT.
+- **Rama de frecuencia** (entrada: logaritmo de la magnitud de la FFT 2D del rostro en escala de grises, centrada y estandarizada, 1×224×224): estructura análoga y más liviana (32 → 64 → 128 → 256 canales). Como variante se evaluarán filtros pasa-altos tipo SRM en lugar de la FFT.
 - **Fusión:** concatenación de ambos vectores → *dropout* → capa densa → salida sigmoide.
-- **Tamaño esperado:** del orden de pocos millones de parámetros.
+- **Tamaño:** 1,63 millones de parámetros (frente a 4,0 millones de EfficientNet-B0).
 
 La predicción a nivel de video se obtiene promediando las probabilidades de sus frames. La arquitectura final puede ajustarse según los resultados de las primeras pruebas.
 
