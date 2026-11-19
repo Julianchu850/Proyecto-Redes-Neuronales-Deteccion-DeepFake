@@ -1,0 +1,23 @@
+# Datos (no versionados)
+data/raw/
+data/faces/
+*.mp4
+*.avi
+*.zip
+
+# Modelos y checkpoints
+*.pt
+*.pth
+*.ckpt
+checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Sistema
+.DS_Store
+Thumbs.db
