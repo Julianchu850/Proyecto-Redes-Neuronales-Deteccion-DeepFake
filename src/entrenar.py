@@ -1,11 +1,11 @@
 """Entrena un modelo y guarda checkpoints reanudables.
 
-Pensado para Colab: si la sesión se cae, se vuelve a correr el mismo comando
+Pensado para Kaggle: si la sesión se corta, se vuelve a correr el mismo comando
 con --reanudar y continúa desde la última época guardada.
 
 Ejemplo:
     python -m src.entrenar --modelo meso4 --datos data/faces/ffpp --splits data/splits/ffpp \
-        --salida /content/drive/MyDrive/deepfakes/runs/meso4
+        --salida runs/meso4
 
 Experimento E3 (técnica no vista): entrenar sin NeuralTextures
     python -m src.entrenar ... --metodos Deepfakes Face2Face FaceSwap
@@ -49,7 +49,7 @@ def argumentos():
     p.add_argument("--reanudar", action="store_true")
     p.add_argument("--max-minutos", type=float, default=None,
                    help="Pausa el entrenamiento (guardando el checkpoint) al superar este tiempo. "
-                        "Útil en Kaggle/Colab: luego se continúa con --reanudar")
+                        "Útil en Kaggle: luego se continúa con --reanudar")
     return p.parse_args()
 
 

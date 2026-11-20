@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 
 def elegir_dispositivo() -> torch.device:
-    """CUDA (Colab / GTX 1660) → MPS (Mac) → CPU."""
+    """CUDA (Kaggle / GTX 1660) → MPS (Mac) → CPU."""
     if torch.cuda.is_available():
         return torch.device("cuda")
     if torch.backends.mps.is_available():

@@ -1,7 +1,7 @@
 # Propuesta de proyecto: Detección de deepfakes con redes neuronales
 
 **Curso:** Redes Neuronales y Aprendizaje Profundo — EAFIT
-**Integrantes:** Julián Lara Aristizábal · _[agregar integrantes]_
+**Integrantes:** Julián Lara Aristizábal · Luis Alfonso Agudelo Ramirez
 
 **Problema.** Los videos con rostros manipulados por IA (deepfakes) son cada vez más fáciles de producir y difíciles de detectar a simple vista, lo que facilita la desinformación y la suplantación de identidad. Los detectores actuales funcionan bien con las técnicas que vieron en su entrenamiento, pero fallan ante técnicas nuevas.
 
@@ -26,7 +26,7 @@ Su rendimiento se comparará con MesoNet, una red pequeña de la literatura entr
 - Se probará la red con una técnica de manipulación que no vio en el entrenamiento y con un dataset externo.
 - Se interpretarán sus decisiones con Grad-CAM.
 
-**Recursos y tiempo.** El proyecto toma 3 semanas y se trabajará con Google Colab (GPU T4) y equipos propios.
+**Recursos y tiempo.** El proyecto toma 3 semanas y se trabajará con Kaggle Notebooks (GPU T4) y equipos propios.
 
 **Entregables.**
 

@@ -5,7 +5,7 @@ En los videos analiza varios frames y promedia, igual que en la evaluación.
 
 Ejemplos:
     python -m app.demo --checkpoint runs/dos_ramas/mejor.pt
-    python -m app.demo --checkpoint runs/dos_ramas/mejor.pt runs/meso4/mejor.pt --compartir   # en Colab
+    python -m app.demo --checkpoint runs/dos_ramas/mejor.pt runs/meso4/mejor.pt --compartir   # enlace público temporal
 """
 
 from __future__ import annotations
@@ -145,7 +145,7 @@ def crear_interfaz(det: Detector) -> gr.Blocks:
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--checkpoint", type=Path, nargs="+", required=True)
-    p.add_argument("--compartir", action="store_true", help="Crea un enlace público temporal (útil en Colab)")
+    p.add_argument("--compartir", action="store_true", help="Crea un enlace público temporal (para abrir la demo desde otro equipo)")
     p.add_argument("--puerto", type=int, default=7860)
     a = p.parse_args()
     crear_interfaz(Detector(a.checkpoint)).launch(share=a.compartir, server_port=a.puerto)

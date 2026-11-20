@@ -1,7 +1,7 @@
 # Anteproyecto: Detección de rostros manipulados (deepfakes) con redes neuronales
 
 **Curso:** Redes Neuronales y Aprendizaje Profundo — Universidad EAFIT
-**Integrantes:** Julián Lara Aristizábal · _[agregar integrantes]_
+**Integrantes:** Julián Lara Aristizábal · Luis Alfonso Agudelo Ramirez
 **Fecha:** octubre de 2026
 **Duración estimada:** 3 semanas
 
@@ -113,7 +113,7 @@ Configuración inicial: optimizador AdamW, *learning rate* de 1e-3 con decaimien
 
 | Recurso | Uso previsto |
 |---|---|
-| Google Colab (GPU T4) | Entrenamiento principal |
+| Kaggle Notebooks (GPU T4) | Extracción de rostros y entrenamiento principal |
 | PC con GTX 1660 (6 GB) | Experimentos de ablación en paralelo |
 | Mac con chip M5 (GPU integrada, backend MPS) | Preprocesamiento, evaluación, Grad-CAM y demo |
 
@@ -135,7 +135,7 @@ Configuración inicial: optimizador AdamW, *learning rate* de 1e-3 con decaimien
 | Demora en el acceso a los datasets | Solicitud inmediata; plan B con datasets de Kaggle |
 | Fuga de información entre *splits* | División por video e identidad, verificada con scripts |
 | Sobreajuste a artefactos de compresión | Aumento de datos con compresión y evaluación en c23 y c40 |
-| Desconexiones de Colab | Checkpoints en Google Drive en cada época |
+| Límite de 12 h por sesión en Kaggle | Checkpoints en cada época y presupuesto de tiempo que pausa y reanuda |
 | Tiempo de entrenamiento elevado | Resolución reducida (160–192 px) para ablaciones; 224 px solo para el modelo final |
 
 ## 11. Consideraciones éticas

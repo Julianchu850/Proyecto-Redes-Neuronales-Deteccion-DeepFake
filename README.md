@@ -4,6 +4,66 @@ Proyecto del curso **Redes Neuronales y Aprendizaje Profundo** (Universidad EAFI
 
 Diseñamos y entrenamos desde cero una red neuronal convolucional de dos ramas, **espacial** y **de frecuencia**, que clasifica rostros extraídos de videos como reales o manipulados. Luego la comparamos con MesoNet y con EfficientNet-B0 preentrenado, y estudiamos qué tan bien generaliza a técnicas de manipulación y datasets que no vio durante el entrenamiento.
 
+## Resultados
+
+Todos los modelos se entrenaron con la misma receta en una GPU T4 de Kaggle y se evaluaron en el conjunto de prueba de FaceForensics++ (C23): 140 videos originales y sus versiones manipuladas, de personas que ninguna red vio. La métrica es el AUC por video (promedio de las caras de cada video). Las cifras completas están en [`results/resultados.csv`](results/resultados.csv).
+
+**Hallazgos principales:**
+
+1. Desde cero, la red propia (0,893) supera a MesoNet (0,828). EfficientNet-B0 preentrenado sigue arriba (0,984).
+2. Lo que gana en lo conocido no es lo que generaliza: la rama de frecuencia sola es la peor en FaceForensics++ (0,700), pero ante FaceShifter, que ningún modelo vio, llega a 0,709, igual que EfficientNet.
+3. Ante una técnica no vista, la red propia cae de ~0,92 a entre 0,43 y 0,78. FaceSwap queda por debajo del azar (0,425).
+4. La variante con filtros SRM es la mejor desde cero (0,939); la atención SE no aportó.
+
+Cada modelo se entrenó una sola vez, así que las diferencias pequeñas pueden ser ruido.
+
+### E1: prueba en FaceForensics++
+
+| Modelo | Parámetros | AUC frame | AUC video | Accuracy video |
+|---|---|---|---|---|
+| MesoNet (desde cero) | 24 mil | 0,788 | 0,828 | 72,1 % |
+| Red propia (desde cero) | 1,63 M | 0,854 | 0,893 | 83,3 % |
+| EfficientNet-B0 (preentrenado) | 4,0 M | 0,979 | 0,984 | 96,3 % |
+
+| AUC video por técnica | Deepfakes | Face2Face | FaceSwap | NeuralTextures |
+|---|---|---|---|---|
+| MesoNet | 0,951 | 0,856 | 0,784 | 0,723 |
+| Red propia | 0,942 | 0,903 | 0,935 | 0,792 |
+| EfficientNet-B0 | 0,996 | 0,986 | 0,989 | 0,964 |
+
+### E2: ablación y E3b: FaceShifter
+
+| Variante | Qué cambia | AUC video FF++ | AUC video FaceShifter |
+|---|---|---|---|
+| Red completa | Espacial + frecuencia (FFT), con SE | 0,893 | 0,640 |
+| Solo espacial | Sin rama de frecuencia | 0,922 | 0,582 |
+| Solo frecuencia | Sin rama espacial | 0,700 | 0,709 |
+| Sin SE | Sin atención por canal | 0,899 | 0,651 |
+| Con SRM | Filtros pasa-altos en vez de FFT | 0,939 | 0,655 |
+| MesoNet | Línea base | 0,828 | 0,652 |
+| EfficientNet-B0 | Preentrenado | 0,984 | 0,709 |
+
+### E3: técnica no vista (red propia)
+
+Cada fila es una red entrenada sin una técnica. «Vistas» es el promedio de las otras tres.
+
+| Técnica no vista | AUC en la no vista | AUC en las vistas |
+|---|---|---|
+| Deepfakes | 0,781 | 0,892 |
+| Face2Face | 0,673 | 0,902 |
+| FaceSwap | 0,425 | 0,944 |
+| NeuralTextures | 0,520 | 0,938 |
+
+### E5: Grad-CAM
+
+Promedio de 140 caras de prueba por técnica. La red propia (arriba, rama espacial) mira una zona amplia del centro de la cara, casi igual en todas las técnicas. EfficientNet-B0 (abajo) señala un lugar distinto por técnica; en NeuralTextures, la boca, que es lo único que esa técnica modifica.
+
+![Grad-CAM promedio de la red propia](docs/figuras/gradcam_promedio_dos_ramas.png)
+
+![Grad-CAM promedio de EfficientNet-B0](docs/figuras/gradcam_promedio_efficientnet_b0.png)
+
+El experimento E4 (generalización a Celeb-DF v2) no se alcanzó a correr y queda como trabajo futuro.
+
 ## Estructura del repositorio
 
 ```
@@ -13,11 +73,10 @@ Diseñamos y entrenamos desde cero una red neuronal convolucional de dos ramas, 
 │   └── splits/ffpp_oficial/   # División oficial de FaceForensics++ por pares de identidades
 ├── docs/                      # Propuesta, anteproyecto e informe
 ├── notebooks/
-│   ├── kaggle_01_extraer_rostros.ipynb  # Kaggle: rostros + splits 
-│   ├── kaggle_02_entrenar.ipynb         # Kaggle: todos los experimentos 
-│   ├── 00_preparar_datos.ipynb          # Alternativa en Colab
-│   └── 01_entrenamiento_colab.ipynb     # Alternativa en Colab
-├── results/                   # Métricas de los experimentos
+│   ├── kaggle_01_extraer_rostros.ipynb  # Kaggle: rostros + splits
+│   └── kaggle_02_entrenar.ipynb         # Kaggle: todos los experimentos
+├── results/
+│   └── resultados.csv         # Métricas de todos los experimentos
 └── src/
     ├── data/
     │   ├── extraer_rostros.py  # Videos → recortes de rostros (detector YuNet) + manifiesto
@@ -65,7 +124,7 @@ La GPU gratuita de Kaggle tiene una cuota de ~30 h por semana. La cola está ord
 pip install -r requirements.txt
 ```
 
-`src/utils.py` elige el dispositivo automáticamente: CUDA (Colab, GTX 1660) → MPS (Mac) → CPU.
+`src/utils.py` elige el dispositivo automáticamente: CUDA (Kaggle, GTX 1660) → MPS (Mac) → CPU.
 
 ### 2. Datos
 
@@ -88,8 +147,6 @@ python -m src.data.extraer_rostros --dataset ffpp --raiz <ruta de kagglehub> --s
 - Si se interrumpe, al volver a correr el comando continúa donde iba.
 - Si el dataset trae **FaceShifter**, la extrae pero **nunca se usa para entrenar**: queda como técnica no vista (E3b).
 
-Luego se empaqueta para subir a Drive: `cd data/faces && zip -r -0 faces_ffpp.zip ffpp`.
-
 ### 4. Crear los splits
 
 ```bash
@@ -106,14 +163,14 @@ python -m src.evaluar --checkpoint runs/meso4/mejor.pt --datos data/faces/ffpp \
     --csv data/splits/ffpp/test.csv --salida results/meso4_ffpp
 ```
 
-En Colab, usar [`notebooks/01_entrenamiento_colab.ipynb`](notebooks/01_entrenamiento_colab.ipynb), que corre todos los experimentos (E1–E5) y arma la tabla de resultados.
+En Kaggle, [`notebooks/kaggle_02_entrenar.ipynb`](notebooks/kaggle_02_entrenar.ipynb) corre todos los experimentos y arma la tabla de resultados.
 
 ### 6. Grad-CAM y demo
 
 ```bash
 python -m src.gradcam --checkpoint runs/dos_ramas/mejor.pt --datos data/faces/ffpp \
     --csv data/splits/ffpp/test.csv --salida results/gradcam/dos_ramas
-python -m app.demo --checkpoint runs/dos_ramas/mejor.pt runs/meso4/mejor.pt   # --compartir en Colab
+python -m app.demo --checkpoint runs/dos_ramas/mejor.pt runs/meso4/mejor.pt
 ```
 
 ## Experimentos
@@ -124,7 +181,7 @@ python -m app.demo --checkpoint runs/dos_ramas/mejor.pt runs/meso4/mejor.pt   # 
 | E2 | Aporte de cada componente | Variantes `solo_espacial`, `solo_frecuencia`, `dos_ramas_sin_se`, `dos_ramas_srm` |
 | E3 | Técnica no vista | `entrenar --metodos` con 3 de las 4 técnicas |
 | E3b | Técnica nunca vista (FaceShifter) | `evaluar --metodos FaceShifter` |
-| E4 | Otro dataset | `evaluar` en Celeb-DF v2 |
+| E4 | Otro dataset (trabajo futuro, no se corrió) | `evaluar` en Celeb-DF v2 |
 | E5 | Interpretabilidad | `gradcam` |
 
 El Grad-CAM se validó con una prueba controlada: se entrenó una red donde lo "falso" era una mancha puesta a propósito en la boca, y el mapa la localiza.
@@ -152,8 +209,7 @@ En la fila de abajo, el *upsampling* (lo que hacen los generadores de deepfakes)
 ## Datasets
 
 - [FaceForensics++](https://github.com/ondyari/FaceForensics) (versión C23 en [Kaggle](https://www.kaggle.com/datasets/xdxd003/ff-c23)): entrenamiento, validación y prueba.
-- [Celeb-DF v2](https://github.com/yuezunli/celeb-deepfakeforensics): prueba de generalización.
-
+- [Celeb-DF v2](https://github.com/yuezunli/celeb-deepfakeforensics): prueba de generalización prevista (trabajo futuro).
 
 ## Créditos de terceros
 
