@@ -4,19 +4,6 @@ Proyecto del curso **Redes Neuronales y Aprendizaje Profundo** (Universidad EAFI
 
 Diseñamos y entrenamos desde cero una red neuronal convolucional de dos ramas, **espacial** y **de frecuencia**, que clasifica rostros extraídos de videos como reales o manipulados. Luego la comparamos con MesoNet y con EfficientNet-B0 preentrenado, y estudiamos qué tan bien generaliza a técnicas de manipulación y datasets que no vio durante el entrenamiento.
 
-- 📄 [Propuesta corta](docs/propuesta.md)
-- 📄 [Anteproyecto completo](docs/anteproyecto.md): problema, objetivos, hipótesis, metodología, cronograma y riesgos.
-
-## Estado
-
-| Semana | Contenido | Estado |
-|---|---|---|
-| 1 | Pipeline de datos (extracción de rostros, splits sin fugas), MesoNet, entrenamiento y evaluación | ✅ Código listo — falta correr con los datos reales |
-| 2 | Red propia de dos ramas, EfficientNet-B0, ablaciones (E1–E3) | ✅ Código listo — falta correr con los datos reales |
-| 3 | FaceShifter (E3b), Celeb-DF (E4), Grad-CAM (E5) y demo | ✅ Código listo — falta el informe |
-
-**Siguiente paso:** correr los notebooks de Kaggle (ver [Cómo correrlo en Kaggle](#cómo-correrlo-en-kaggle)).
-
 ## Estructura del repositorio
 
 ```
@@ -26,8 +13,8 @@ Diseñamos y entrenamos desde cero una red neuronal convolucional de dos ramas, 
 │   └── splits/ffpp_oficial/   # División oficial de FaceForensics++ por pares de identidades
 ├── docs/                      # Propuesta, anteproyecto e informe
 ├── notebooks/
-│   ├── kaggle_01_extraer_rostros.ipynb  # ⭐ Kaggle: rostros + splits (CPU)
-│   ├── kaggle_02_entrenar.ipynb         # ⭐ Kaggle: todos los experimentos (GPU)
+│   ├── kaggle_01_extraer_rostros.ipynb  # Kaggle: rostros + splits 
+│   ├── kaggle_02_entrenar.ipynb         # Kaggle: todos los experimentos 
 │   ├── 00_preparar_datos.ipynb          # Alternativa en Colab
 │   └── 01_entrenamiento_colab.ipynb     # Alternativa en Colab
 ├── results/                   # Métricas de los experimentos
@@ -167,7 +154,6 @@ En la fila de abajo, el *upsampling* (lo que hacen los generadores de deepfakes)
 - [FaceForensics++](https://github.com/ondyari/FaceForensics) (versión C23 en [Kaggle](https://www.kaggle.com/datasets/xdxd003/ff-c23)): entrenamiento, validación y prueba.
 - [Celeb-DF v2](https://github.com/yuezunli/celeb-deepfakeforensics): prueba de generalización.
 
-Se usan solo con fines académicos y según sus términos de uso. Los datos **no** se suben a este repositorio.
 
 ## Créditos de terceros
 
@@ -177,4 +163,4 @@ Se usan solo con fines académicos y según sus términos de uso. Los datos **no
 ## Integrantes
 
 - Julián Lara Aristizábal
-- _[agregar integrantes]_
+- Luis Alfonso Agudelo Ramirez
